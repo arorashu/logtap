@@ -189,7 +189,18 @@ function corsResponse(res: Response, opts: ResolvedServerOptions, req: Request):
   const allowed = opts.corsOrigins.includes("*") || opts.corsOrigins.includes(origin);
   if (!allowed) return res;
   const headers = new Headers(res.headers);
-  headers.set("Access-Control-Allow-Origin", origin || "*");
+  // When the request has a specific Origin, echo it and enable
+  // credentials so `navigator.sendBeacon` (which always sends cookies)
+  // passes the preflight. ACAC=true requires a specific ACAO — never
+  // pair it with `*`. Without an Origin header (same-origin or
+  // server-to-server) we keep the wildcard and skip credentials.
+  if (origin) {
+    headers.set("Access-Control-Allow-Origin", origin);
+    headers.set("Access-Control-Allow-Credentials", "true");
+    headers.append("Vary", "Origin");
+  } else {
+    headers.set("Access-Control-Allow-Origin", "*");
+  }
   headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
   return new Response(res.body, { status: res.status, headers });

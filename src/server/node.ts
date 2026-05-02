@@ -30,10 +30,20 @@ export function createNodeServer(opts: ResolvedServerOptions) {
 
     function setcors(): void {
       if (opts.corsOrigins.length === 0) return;
-      const origin = req.headers["origin"] ?? "";
-      const allowed = opts.corsOrigins.includes("*") || opts.corsOrigins.includes(origin as string);
+      const origin = (req.headers["origin"] as string | undefined) ?? "";
+      const allowed = opts.corsOrigins.includes("*") || opts.corsOrigins.includes(origin);
       if (!allowed) return;
-      res.setHeader("Access-Control-Allow-Origin", origin || "*");
+      // Specific Origin → enable credentials (sendBeacon always sends
+      // cookies, so without ACAC=true the preflight fails). ACAC=true
+      // is incompatible with ACAO=* so only pair them when we have a
+      // concrete origin.
+      if (origin) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+        res.setHeader("Access-Control-Allow-Credentials", "true");
+        res.setHeader("Vary", "Origin");
+      } else {
+        res.setHeader("Access-Control-Allow-Origin", "*");
+      }
       res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     }
