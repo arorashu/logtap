@@ -1,4 +1,4 @@
-# LogTap — Codex Implementation Spec
+# LogTap — Implementation Spec
 
 ## Purpose
 
@@ -163,6 +163,9 @@ logtap/
   examples/
     vite-react/
     nextjs/
+  docs/
+    spec.md
+  llms.txt
   AGENTS.md
   README.md
 ```
@@ -1170,12 +1173,13 @@ clear
 artifacts add may be stubbed or implemented
 ```
 
-## AGENTS.md
+## LLM guide
 
-Create an `AGENTS.md` with this content:
+Provide an `llms.txt` file with compact guidance for agents consuming LogTap
+output in downstream projects:
 
 ```md
-# LogTap Agent Instructions
+# LogTap LLM Guide
 
 When debugging frontend issues, inspect LogTap output before changing code.
 
@@ -1205,6 +1209,9 @@ Do not remove logging, retention, dedupe, rate-limit, or redaction safeguards un
 If source-map mapping failed, inspect the raw stack and verify artifact configuration.
 ```
 
+The repository root `AGENTS.md` is reserved for contributor guidance for this
+LogTap implementation repo. Keep it short and use it as a map to deeper docs.
+
 ## README requirements
 
 README must include:
@@ -1222,7 +1229,7 @@ README must include:
 * Resource footprint goals
 * Security/redaction notes
 * Source-map artifact notes
-* Example Codex/agent workflow
+* Example LLM/agent workflow
 
 ## Example usage
 
@@ -1362,7 +1369,7 @@ v0 is complete when:
 * No runtime server dependency is required for core.
 * Source-map fields exist in the schema.
 * Source-map implementation is either working behind an optional module or clearly stubbed without breaking ingestion.
-* README and AGENTS.md exist.
+* README, `llms.txt`, and contributor `AGENTS.md` exist.
 
 ## Implementation phases
 
@@ -1411,7 +1418,8 @@ v0 is complete when:
 * `logtap summary`
 * `logtap clear`
 * README
-* AGENTS.md
+* `llms.txt`
+* contributor `AGENTS.md`
 * Vite example
 
 ### Phase 6 — Optional source maps
@@ -1423,7 +1431,7 @@ v0 is complete when:
 * `@jridgewell/trace-mapping` integration
 * Mapped stack output
 
-## Design constraints for Codex
+## Design constraints for implementation agents
 
 * Keep code boring and inspectable.
 * Avoid dependency creep.

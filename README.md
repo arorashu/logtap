@@ -10,6 +10,13 @@ A minimal, resource-efficient client-side logging harness for web development. I
 - Not for production-scale deployments
 - Does not capture request/response bodies by default
 
+## Documentation
+
+- `docs/spec.md`: v0 product and implementation spec
+- `docs/oss-release.md`: public release readiness checklist
+- `AGENTS.md`: contributor map for agents working in this repository
+- `llms.txt`: compact guide for agents using LogTap output while debugging apps
+
 ## Quickstart: Vite + React
 
 ```ts
@@ -191,6 +198,8 @@ Artifacts are stored at:
 The `@jridgewell/trace-mapping` package is an optional dependency. If not installed, source-map enrichment is skipped and `sourceMapStatus` is set to `missing`.
 
 ## Example agent workflow
+
+`llms.txt` contains the compact version of this workflow for agents.
 
 1. Frontend shows an error. Agent starts debugging.
 2. Agent reads `.agent/logtap/projects/billing-ui.dev/summaries/latest.md`

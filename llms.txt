@@ -1,0 +1,40 @@
+# LogTap LLM Guide
+
+LogTap is a local browser/client logging sidecar for development. It captures
+browser warnings, errors, failed fetches, unhandled rejections, and breadcrumbs,
+then writes bounded per-project JSONL logs plus deterministic summaries.
+
+Use this file when an agent is debugging a frontend project that has LogTap
+installed or when an agent needs a compact map of LogTap's generated output.
+
+## Before changing frontend code
+
+Inspect LogTap output first when it exists:
+
+```txt
+.agent/logtap/projects/<project-id>/summaries/latest.md
+.agent/logtap/projects/<project-id>/logs/client.jsonl
+```
+
+Start with `summaries/latest.md`. Use `logs/client.jsonl` for raw event detail,
+breadcrumbs, full stacks, and exact event ordering.
+
+## What to look for
+
+- Top client errors and repeated warnings.
+- Failed network requests.
+- Breadcrumbs immediately before a failure.
+- Raw stack and mapped stack, when source maps are configured.
+- Source-map status: `mapped`, `missing`, `failed`, or `not_needed`.
+- Observed vs stored event counts.
+- Suppressed duplicate counts from client and server rollups.
+- Whether truncation likely occurred.
+
+## Debugging rule
+
+Prefer fixing root causes over suppressing warnings. Do not remove logging,
+retention, dedupe, rate-limit, rollup, or redaction safeguards unless the user
+explicitly asks for that.
+
+If source-map mapping failed, inspect the raw stack and verify artifact
+registration before assuming the source location is unavailable.
