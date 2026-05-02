@@ -222,21 +222,35 @@ describe("summary", () => {
   });
 
   it("includes stored, observed, and suppressed counts in rollup", () => {
+    for (let i = 0; i < 3; i++) {
+      appendEvent(tmpDir, "test.dev", makeEvent({
+        message: "same warning",
+        level: "warn",
+        fingerprint: "warn-fingerprint",
+      }));
+    }
     const rollup: LogTapEvent = {
       ts: new Date().toISOString(),
       level: "warn",
       kind: "rollup",
       message: "dedupe_rollup",
+      fingerprint: "warn-fingerprint",
       data: {
         observedCount: 100,
         storedCount: 3,
         suppressedCount: 97,
+        exemplarMessage: "same warning",
+        exemplarKind: "console",
       },
     };
     appendEvent(tmpDir, "test.dev", rollup);
     const s = buildSummary(tmpDir, "test.dev", undefined);
     expect(s.suppressedDuplicates).toBe(97);
+    expect(s.warningsStored).toBe(3);
     expect(s.warningsObserved).toBe(100);
+    expect(s.topErrors[0]?.storedCount).toBe(3);
+    expect(s.topErrors[0]?.observedCount).toBe(100);
+    expect(s.topErrors[0]?.suppressedCount).toBe(97);
   });
 
   it("writes markdown summary file", () => {

@@ -1,5 +1,6 @@
 import type { LogTapEvent, LogTapLevel } from "../shared/types.ts";
 import { fingerprint } from "../shared/fingerprint.ts";
+import { topStackFrame } from "../shared/normalize.ts";
 import { BatchTransport } from "./transport.ts";
 import { BreadcrumbBuffer, patchHistory } from "./breadcrumbs.ts";
 import { patchConsole } from "./console.ts";
@@ -27,6 +28,9 @@ export type BrowserTapOptions = {
   maxBreadcrumbs?: number;
   flushIntervalMs?: number;
   maxBatchSize?: number;
+  clientDedupe?: boolean;
+  clientDedupeWindowMs?: number;
+  clientRollupIntervalMs?: number;
 };
 
 export type BrowserTap = {
@@ -46,7 +50,15 @@ const DEFAULT_SAMPLE: Record<LogTapLevel | "networkError", number> = {
 };
 
 // simple client-side dedupe to reduce network spam
-type ClientDedupe = { fp: string; seenAt: number };
+type ClientDedupeBucket = {
+  fingerprint: string;
+  firstSeen: number;
+  lastSeen: number;
+  observedCount: number;
+  sentCount: number;
+  suppressedCount: number;
+  exemplar: LogTapEvent;
+};
 
 export function createBrowserTap(options: BrowserTapOptions): BrowserTap {
   const enabled = options.enabled !== false;
@@ -65,6 +77,9 @@ export function createBrowserTap(options: BrowserTapOptions): BrowserTap {
   const maxBreadcrumbs = options.maxBreadcrumbs ?? 50;
   const flushIntervalMs = options.flushIntervalMs ?? 1000;
   const maxBatchSize = options.maxBatchSize ?? 20;
+  const clientDedupe = options.clientDedupe !== false;
+  const clientDedupeWindowMs = options.clientDedupeWindowMs ?? 60_000;
+  const clientRollupIntervalMs = options.clientRollupIntervalMs ?? 1000;
 
   const base = {
     app: options.app,
@@ -80,27 +95,113 @@ export function createBrowserTap(options: BrowserTapOptions): BrowserTap {
   const transport = new BatchTransport({ endpoint: options.endpoint, flushIntervalMs, maxBatchSize });
   transport.start();
 
-  // client-side dedupe: max 500 fingerprints, 60s window
-  const clientSeen: ClientDedupe[] = [];
-  const CLIENT_DEDUPE_WINDOW = 60_000;
+  // Client-side dedupe protects the browser pipe, but rollups preserve counts.
+  const clientBuckets = new Map<string, ClientDedupeBucket>();
   const CLIENT_MAX_DEDUPES = 500;
+  const rollupTimer = clientDedupe
+    ? setInterval(() => flushClientRollups(), clientRollupIntervalMs)
+    : null;
 
   function shouldSendClientSide(event: LogTapEvent): boolean {
+    if (!clientDedupe) return true;
+
     const fp = fingerprint(event);
     const now = Date.now();
+    pruneClientBuckets(now);
 
-    // prune stale entries
-    const cutoff = now - CLIENT_DEDUPE_WINDOW;
-    while (clientSeen.length > 0 && (clientSeen[0]?.seenAt ?? 0) < cutoff) {
-      clientSeen.shift();
+    const existing = clientBuckets.get(fp);
+    if (existing && now - existing.lastSeen <= clientDedupeWindowMs) {
+      existing.observedCount++;
+      existing.suppressedCount++;
+      existing.lastSeen = now;
+      existing.exemplar = event;
+      return false;
     }
 
-    const existing = clientSeen.find(c => c.fp === fp);
-    if (existing && now - existing.seenAt < CLIENT_DEDUPE_WINDOW) return false;
+    if (existing) {
+      flushClientRollup(existing);
+      clientBuckets.delete(fp);
+    }
 
-    if (clientSeen.length >= CLIENT_MAX_DEDUPES) clientSeen.shift();
-    clientSeen.push({ fp, seenAt: now });
+    if (clientBuckets.size >= CLIENT_MAX_DEDUPES) {
+      evictOldestClientBucket();
+    }
+
+    clientBuckets.set(fp, {
+      fingerprint: fp,
+      firstSeen: now,
+      lastSeen: now,
+      observedCount: 1,
+      sentCount: 1,
+      suppressedCount: 0,
+      exemplar: event,
+    });
     return true;
+  }
+
+  function pruneClientBuckets(now: number): void {
+    for (const [fp, bucket] of clientBuckets) {
+      if (now - bucket.lastSeen <= clientDedupeWindowMs) continue;
+      if (bucket.suppressedCount > 0) flushClientRollup(bucket);
+      clientBuckets.delete(fp);
+    }
+  }
+
+  function evictOldestClientBucket(): void {
+    let oldestKey: string | undefined;
+    let oldestSeen = Infinity;
+    for (const [fp, bucket] of clientBuckets) {
+      if (bucket.lastSeen < oldestSeen) {
+        oldestSeen = bucket.lastSeen;
+        oldestKey = fp;
+      }
+    }
+    if (!oldestKey) return;
+    const bucket = clientBuckets.get(oldestKey);
+    if (bucket && bucket.suppressedCount > 0) flushClientRollup(bucket);
+    clientBuckets.delete(oldestKey);
+  }
+
+  function flushClientRollup(bucket: ClientDedupeBucket): void {
+    if (bucket.suppressedCount <= 0) return;
+
+    const exemplar = bucket.exemplar;
+    transport.enqueue({
+      ts: new Date().toISOString(),
+      level: exemplar.level,
+      kind: "rollup",
+      message: "client_dedupe_rollup",
+      app: exemplar.app,
+      env: exemplar.env,
+      projectId: exemplar.projectId,
+      sessionId: exemplar.sessionId,
+      userId: exemplar.userId,
+      buildSha: exemplar.buildSha,
+      release: exemplar.release,
+      url: exemplar.url,
+      route: exemplar.route,
+      fingerprint: bucket.fingerprint,
+      sourceMapStatus: exemplar.sourceMapStatus,
+      network: exemplar.network,
+      data: {
+        observedCount: bucket.observedCount,
+        storedCount: bucket.sentCount,
+        suppressedCount: bucket.suppressedCount,
+        firstSeen: new Date(bucket.firstSeen).toISOString(),
+        lastSeen: new Date(bucket.lastSeen).toISOString(),
+        exemplarMessage: exemplar.message,
+        exemplarKind: exemplar.kind,
+        stackTop: topStackFrame(exemplar.stackMapped ?? exemplar.stack),
+      },
+    });
+
+    bucket.suppressedCount = 0;
+  }
+
+  function flushClientRollups(): void {
+    for (const bucket of clientBuckets.values()) {
+      flushClientRollup(bucket);
+    }
   }
 
   function applySample(event: LogTapEvent): boolean {
@@ -190,10 +291,14 @@ export function createBrowserTap(options: BrowserTapOptions): BrowserTap {
     },
 
     flush() {
+      flushClientRollups();
       return transport.flush();
     },
 
     stop() {
+      flushClientRollups();
+      void transport.flush();
+      if (rollupTimer !== null) clearInterval(rollupTimer);
       transport.stop();
       for (const cleanup of cleanups) cleanup();
     },

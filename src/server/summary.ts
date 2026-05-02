@@ -53,12 +53,22 @@ export function buildSummary(
   for (const e of events) {
     if (e.kind === "rollup" && e.data) {
       const d = e.data as Record<string, unknown>;
-      const suppressed = typeof d["suppressedCount"] === "number" ? d["suppressedCount"] : 0;
+      const observed = numberField(d, "observedCount");
+      const stored = numberField(d, "storedCount");
+      const suppressed = numberField(d, "suppressedCount") || Math.max(0, observed - stored);
+      const exemplarKind = stringField(d, "exemplarKind");
       suppressedDuplicates += suppressed;
-      const observed = typeof d["observedCount"] === "number" ? d["observedCount"] : 0;
-      const stored = typeof d["storedCount"] === "number" ? d["storedCount"] : 0;
-      if (e.level === "error") { errorsObserved += observed; errorsStored += stored; }
-      if (e.level === "warn") { warningsObserved += observed; warningsStored += stored; }
+      if (e.level === "error") errorsObserved += suppressed;
+      if (e.level === "warn") warningsObserved += suppressed;
+
+      if (exemplarKind === "network" && e.network) {
+        networkFailuresObserved += suppressed;
+        mergeNetworkRollup(networkGroups, e, suppressed);
+      }
+
+      if (e.level === "error" || e.level === "warn") {
+        mergeTopErrorRollup(errorGroups, e, d, suppressed);
+      }
       continue;
     }
 
@@ -70,7 +80,7 @@ export function buildSummary(
       warningsObserved++;
     }
 
-    if (e.kind === "network" && e.network && (e.network.status ?? 0) >= 400) {
+    if (e.kind === "network" && e.network && isNetworkFailure(e)) {
       networkFailuresStored++;
       networkFailuresObserved++;
       const nfp = e.fingerprint ?? `${e.network.method}|${e.network.url}|${e.network.status}`;
@@ -168,6 +178,82 @@ export function buildSummary(
     truncationLikely,
     sections: extraSections.length > 0 ? extraSections : undefined,
   };
+}
+
+function numberField(data: Record<string, unknown>, key: string): number {
+  const value = data[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function stringField(data: Record<string, unknown>, key: string): string | undefined {
+  const value = data[key];
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function isNetworkFailure(e: LogTapEvent): boolean {
+  if (e.kind !== "network" || !e.network) return false;
+  return e.network.status === undefined || e.network.status >= 400;
+}
+
+function mergeTopErrorRollup(
+  groups: Map<string, TopErrorEntry>,
+  event: LogTapEvent,
+  data: Record<string, unknown>,
+  suppressed: number,
+): void {
+  if (suppressed <= 0) return;
+
+  const fp = event.fingerprint ?? event.message;
+  const firstSeen = stringField(data, "firstSeen") ?? event.ts;
+  const lastSeen = stringField(data, "lastSeen") ?? event.ts;
+  const route = event.route ?? stringField(data, "route");
+  const stackTop = stringField(data, "stackTop") ?? topStackFrame(event.stackMapped ?? event.stack);
+  const existing = groups.get(fp);
+
+  if (existing) {
+    existing.observedCount += suppressed;
+    existing.suppressedCount += suppressed;
+    existing.lastSeen = lastSeen;
+    if (!existing.route && route) existing.route = route;
+    if (!existing.stackTop && stackTop) existing.stackTop = stackTop;
+    if (!existing.sourceMapStatus && event.sourceMapStatus) existing.sourceMapStatus = event.sourceMapStatus;
+    return;
+  }
+
+  groups.set(fp, {
+    message: stringField(data, "exemplarMessage") ?? event.message,
+    fingerprint: fp,
+    storedCount: 0,
+    observedCount: suppressed,
+    suppressedCount: suppressed,
+    firstSeen,
+    lastSeen,
+    route,
+    stackTop,
+    sourceMapStatus: event.sourceMapStatus,
+  });
+}
+
+function mergeNetworkRollup(
+  groups: Map<string, NetworkFailureEntry>,
+  event: LogTapEvent,
+  suppressed: number,
+): void {
+  if (suppressed <= 0 || !event.network) return;
+  const fp = event.fingerprint ?? `${event.network.method}|${event.network.url}|${event.network.status}`;
+  const existing = groups.get(fp);
+  if (existing) {
+    existing.observedCount += suppressed;
+    return;
+  }
+
+  groups.set(fp, {
+    method: event.network.method,
+    url: event.network.url,
+    status: event.network.status,
+    observedCount: suppressed,
+    fingerprint: fp,
+  });
 }
 
 export function summaryToMarkdown(s: ProjectSummaryJson): string {

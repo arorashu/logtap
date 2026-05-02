@@ -40,8 +40,10 @@ export async function processEvents(
     // redact
     event = redact(event) as LogTapEvent;
 
-    // compute fingerprint
-    const fp = fingerprint(event);
+    // Rollups carry the exemplar fingerprint they summarize.
+    const fp = event.kind === "rollup" && event.fingerprint
+      ? event.fingerprint
+      : fingerprint(event);
     event = { ...event, fingerprint: fp };
 
     // source map enrichment
@@ -63,12 +65,16 @@ export async function processEvents(
       }
     }
 
-    // dedupe
-    const shouldStore = dedupe.shouldStore(event, projectId);
-    if (!shouldStore) { dropped++; continue; }
+    if (event.kind !== "rollup") {
+      const firstOccurrence = opts.dedupe.enabled && !dedupe.getBucket(projectId, fp);
 
-    // sampling (after dedupe; first occurrence always passes dedupe)
-    if (!shouldSample(event, opts)) { dropped++; continue; }
+      // dedupe
+      const shouldStore = dedupe.shouldStore(event, projectId);
+      if (!shouldStore) { dropped++; continue; }
+
+      // sampling (after dedupe); first occurrence of a fingerprint is always kept.
+      if (!firstOccurrence && !shouldSample(event, opts)) { dropped++; continue; }
+    }
 
     appendEvent(opts.rootDir, projectId, event);
     stored++;

@@ -531,6 +531,9 @@ type BrowserTapOptions = {
   maxBreadcrumbs?: number;
   flushIntervalMs?: number;
   maxBatchSize?: number;
+  clientDedupe?: boolean;
+  clientDedupeWindowMs?: number;
+  clientRollupIntervalMs?: number;
 };
 
 export function createBrowserTap(options: BrowserTapOptions): BrowserTap;
@@ -560,6 +563,9 @@ type BrowserTap = {
   maxBreadcrumbs: 50,
   flushIntervalMs: 1000,
   maxBatchSize: 20,
+  clientDedupe: true,
+  clientDedupeWindowMs: 60_000,
+  clientRollupIntervalMs: 1000,
   sample: {
     debug: 0,
     info: 0,
@@ -648,16 +654,25 @@ Do not store every breadcrumb as a standalone event by default. Attach recent br
 
 ### Client-side dedupe
 
-Client-side dedupe is optional but recommended to reduce network spam.
+Client-side dedupe is required to protect the browser-to-sidecar pipe during
+pathological loops, but it must preserve counts.
 
 Keep it simple:
 
 ```txt
 max fingerprints tracked: 500
 dedupe window: 60s
+rollup interval: 1s
 ```
 
-The server remains authoritative for dedupe and retention.
+Rules:
+
+* Send the first occurrence of a fingerprint immediately.
+* Suppress identical repeats inside the dedupe window.
+* Count suppressed repeats locally.
+* Emit compact client rollup events for suppressed repeats.
+* The server remains authoritative for storage dedupe, retention, and summaries.
+* Client-side dedupe must never silently drop duplicate counts.
 
 ### Transport
 
@@ -1421,4 +1436,3 @@ v0 is complete when:
 * Keep raw logs even if enrichment fails.
 * Never let logging failure break the host app.
 * Make dedupe honest: summaries must show observed vs stored vs suppressed events.
-

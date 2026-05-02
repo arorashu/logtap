@@ -140,9 +140,12 @@ LogTap uses server-side deduplication to avoid flooding the JSONL file with iden
 - Suppressed duplicates are summarized in periodic rollup events
 - Summary always shows observed vs stored vs suppressed counts
 
-Client-side deduplication (optional, conservative):
+Client-side deduplication (enabled by default, count-preserving):
 - Max 500 fingerprints tracked
 - 60-second window
+- First occurrence is sent immediately
+- Suppressed repeats are counted and sent as compact rollup events
+- Summaries preserve observed/stored/suppressed counts
 
 ## Resource footprint
 

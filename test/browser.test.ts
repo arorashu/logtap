@@ -242,3 +242,48 @@ describe("standalone breadcrumbs not sent by default", () => {
     expect(sent.every(e => e.kind !== "breadcrumb")).toBe(true);
   });
 });
+
+describe("client dedupe rollups", () => {
+  it("sends duplicate counts as rollup events", async () => {
+    const sent: LogTapEvent[] = [];
+    const originalSendBeacon = navigator.sendBeacon;
+    Object.defineProperty(navigator, "sendBeacon", {
+      configurable: true,
+      value: undefined,
+    });
+    const fetchSpy = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      const body = init?.body;
+      if (typeof body === "string") {
+        const parsed = JSON.parse(body) as { events: LogTapEvent[] };
+        sent.push(...parsed.events);
+      }
+      return new Response(null, { status: 204 });
+    });
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    const tap = createBrowserTap({
+      ...makeOptions(),
+      captureConsole: false,
+      captureErrors: false,
+      captureNetwork: false,
+      clientRollupIntervalMs: 60_000,
+    });
+
+    for (let i = 0; i < 5; i++) {
+      tap.warn("same render warning");
+    }
+    await tap.flush();
+    tap.stop();
+
+    const rollup = sent.find(e => e.kind === "rollup");
+    expect(sent.filter(e => e.kind === "manual")).toHaveLength(1);
+    expect(rollup?.message).toBe("client_dedupe_rollup");
+    expect((rollup?.data as Record<string, number>)?.["suppressedCount"]).toBe(4);
+    expect((rollup?.data as Record<string, number>)?.["observedCount"]).toBe(5);
+
+    Object.defineProperty(navigator, "sendBeacon", {
+      configurable: true,
+      value: originalSendBeacon,
+    });
+  });
+});

@@ -1,5 +1,6 @@
 import type { LogTapEvent, DedupeBucket, DedupeOptions } from "../shared/types.ts";
 import { fingerprint as computeFingerprint } from "../shared/fingerprint.ts";
+import { topStackFrame } from "../shared/normalize.ts";
 
 export const DEFAULT_DEDUPE_OPTIONS: DedupeOptions = {
   enabled: true,
@@ -98,6 +99,17 @@ export class DedupeEngine {
         level: bucket.exemplar.level,
         kind: "rollup",
         message: "dedupe_rollup",
+        app: bucket.exemplar.app,
+        env: bucket.exemplar.env,
+        projectId: bucket.exemplar.projectId,
+        sessionId: bucket.exemplar.sessionId,
+        userId: bucket.exemplar.userId,
+        buildSha: bucket.exemplar.buildSha,
+        release: bucket.exemplar.release,
+        url: bucket.exemplar.url,
+        route: bucket.exemplar.route,
+        network: bucket.exemplar.network,
+        sourceMapStatus: bucket.exemplar.sourceMapStatus,
         fingerprint: fp,
         data: {
           observedCount: bucket.observedCount,
@@ -106,6 +118,8 @@ export class DedupeEngine {
           firstSeen: new Date(bucket.firstSeen).toISOString(),
           lastSeen: new Date(bucket.lastSeen).toISOString(),
           exemplarMessage: bucket.exemplar.message,
+          exemplarKind: bucket.exemplar.kind,
+          stackTop: topStackFrame(bucket.exemplar.stackMapped ?? bucket.exemplar.stack),
         },
       });
       // reset suppressed count after rollup
