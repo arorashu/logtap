@@ -1,0 +1,35 @@
+{
+  "name": "@your-scope/logtap",
+  "version": "0.1.0",
+  "description": "Minimal client-side logging harness for web development",
+  "type": "module",
+  "main": "./dist/server/index.js",
+  "bin": {
+    "logtap": "./bin/logtap.ts"
+  },
+  "exports": {
+    "./browser": {
+      "import": "./src/browser/index.ts",
+      "default": "./src/browser/index.ts"
+    },
+    "./server": {
+      "import": "./src/server/index.ts",
+      "default": "./src/server/index.ts"
+    }
+  },
+  "scripts": {
+    "start": "bun run bin/logtap.ts start",
+    "build": "bun build src/browser/index.ts --outdir dist/browser --target browser && bun build src/server/index.ts --outdir dist/server --target bun",
+    "test": "bunx vitest run",
+    "test:watch": "bunx vitest"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@vitest/coverage-v8": "^2.0.0",
+    "happy-dom": "^20.9.0",
+    "vitest": "^2.0.0"
+  },
+  "optionalDependencies": {
+    "@jridgewell/trace-mapping": "^0.3.25"
+  }
+}
