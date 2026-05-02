@@ -10,6 +10,8 @@ Use this as the release-readiness tracker for publishing LogTap.
 - Add package metadata: repository, homepage, bugs, keywords, author, and files.
 - Decide whether published exports should point at built `dist/` files instead
   of TypeScript source files.
+- Decide whether local development keeps path-based source exports or uses the
+  same built package shape as public npm.
 - Add CI for `bun test`, `bun run test`, `bunx tsc --noEmit`, and
   `bun run build`.
 - Verify the CLI install path works from a packed tarball.

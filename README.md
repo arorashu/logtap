@@ -19,6 +19,30 @@ A minimal, resource-efficient client-side logging harness for web development. I
 
 ## Quickstart: Vite + React
 
+For local use from another repo on this machine, install LogTap from this
+checkout first:
+
+```bash
+cd /path/to/your-ui-project
+bun add /home/agent/work/logtap
+```
+
+Then add a script in the UI project's `package.json`:
+
+```json
+{
+  "scripts": {
+    "logtap": "logtap start --port 4319 --root .agent/logtap"
+  }
+}
+```
+
+Run the sidecar from the UI project root:
+
+```bash
+bun run logtap
+```
+
 ```ts
 // src/logtap.ts
 import { createBrowserTap } from "@your-scope/logtap/browser";
