@@ -2,22 +2,27 @@
 
 Use this as the release-readiness tracker for publishing LogTap.
 
-## Required before first public release
+## Ready for GitHub sharing
 
-- Choose the final npm package name. `package.json` currently uses
-  `@your-scope/logtap`.
-- Add `LICENSE`.
-- Add package metadata: repository, homepage, bugs, keywords, author, and files.
-- Decide whether published exports should point at built `dist/` files instead
-  of TypeScript source files.
-- Decide whether local development keeps path-based source exports or uses the
-  same built package shape as public npm.
-- Add CI for `bun test`, `bun run test`, `bunx tsc --noEmit`, and
-  `bun run build`.
-- Verify the CLI install path works from a packed tarball.
+- Package name is `@arorashu/logtap`.
+- MIT license is included.
+- Package metadata points at `github.com/arorashu/logtap`.
+- Exports point at built `dist/` JavaScript and declaration files.
+- `prepare` builds the package for Git installs.
+- CI runs `bun test`, `bun run test`, `bun run typecheck`, and `bun run build`.
+- Local packed tarball verification passes for npm install, server import,
+  browser import, and CLI help.
+- Local packed tarball verification also starts the programmatic Node server
+  fallback successfully.
+
+## Required before npm publish
+
+- Create the GitHub repository and verify the metadata URLs.
 - Confirm source-map support behavior when `@jridgewell/trace-mapping` is not
   installed.
-- Review README examples after the final package name is chosen.
+- Decide whether the Bun-powered CLI is acceptable for npm users, or whether to
+  add a Node-compatible CLI entry point.
+- Run a final README pass after the first GitHub URL exists.
 
 ## Documentation shape
 

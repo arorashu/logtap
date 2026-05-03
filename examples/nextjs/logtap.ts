@@ -1,4 +1,4 @@
-import { createBrowserTap } from "@your-scope/logtap/browser";
+import { createBrowserTap } from "@arorashu/logtap/browser";
 
 export const logtap =
   typeof window !== "undefined"

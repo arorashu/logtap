@@ -102,7 +102,7 @@ LogTap
 Package:
 
 ```txt
-@your-scope/logtap
+@arorashu/logtap
 ```
 
 CLI:
@@ -173,15 +173,15 @@ logtap/
 Exports:
 
 ```ts
-import { createBrowserTap } from "@your-scope/logtap/browser";
-import { createLogTapServer } from "@your-scope/logtap/server";
+import { createBrowserTap } from "@arorashu/logtap/browser";
+import { createLogTapServer } from "@arorashu/logtap/server";
 ```
 
 Optional future exports:
 
 ```ts
-import { LogTapErrorBoundary } from "@your-scope/logtap/react";
-import { attachPlaywrightLogging } from "@your-scope/logtap/playwright";
+import { LogTapErrorBoundary } from "@arorashu/logtap/react";
+import { attachPlaywrightLogging } from "@arorashu/logtap/playwright";
 ```
 
 ## Core event schema
@@ -1236,7 +1236,7 @@ README must include:
 ### Server
 
 ```ts
-import { createLogTapServer } from "@your-scope/logtap/server";
+import { createLogTapServer } from "@arorashu/logtap/server";
 
 const server = createLogTapServer({
   port: 4319,
@@ -1254,7 +1254,7 @@ await server.start();
 ### Browser
 
 ```ts
-import { createBrowserTap } from "@your-scope/logtap/browser";
+import { createBrowserTap } from "@arorashu/logtap/browser";
 
 export const logtap = createBrowserTap({
   endpoint: "http://localhost:4319/__logtap/ingest",

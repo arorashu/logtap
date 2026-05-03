@@ -20,20 +20,31 @@ A minimal, resource-efficient client-side logging harness for web development. I
 
 ## Quickstart: Vite + React
 
-For local use from another repo on this machine, install LogTap from this
-checkout first:
+Install LogTap:
 
 ```bash
-cd /path/to/your-ui-project
+bun add github:arorashu/logtap
+```
+
+For local development from this checkout, use a path dependency instead:
+
+```bash
 bun add /home/agent/work/logtap
 ```
 
-Then add a script in the UI project's `package.json`:
+After npm publication, npm users can install the same package:
+
+```bash
+npm install @arorashu/logtap
+```
+
+The `logtap` CLI uses Bun as its runtime. Add a script in the UI project's
+`package.json`:
 
 ```json
 {
   "scripts": {
-    "logtap": "logtap start --port 4319 --root .agent/logtap"
+    "logtap": "logtap"
   }
 }
 ```
@@ -41,12 +52,12 @@ Then add a script in the UI project's `package.json`:
 Run the sidecar from the UI project root:
 
 ```bash
-bun run logtap
+bun run logtap start --port 4319 --root .agent/logtap
 ```
 
 ```ts
 // src/logtap.ts
-import { createBrowserTap } from "@your-scope/logtap/browser";
+import { createBrowserTap } from "@arorashu/logtap/browser";
 
 export const logtap = createBrowserTap({
   endpoint: "http://localhost:4319/__logtap/ingest",
@@ -82,7 +93,7 @@ try {
 
 ```html
 <script type="module">
-  import { createBrowserTap } from "https://cdn.example.com/logtap/browser.js";
+  import { createBrowserTap } from "https://esm.sh/@arorashu/logtap/browser";
   window.logtap = createBrowserTap({
     endpoint: "http://localhost:4319/__logtap/ingest",
     app: "my-site",
@@ -93,32 +104,33 @@ try {
 ## Start the Bun server
 
 ```bash
-bun run bin/logtap.ts start --port 4319 --root .agent/logtap
+bun run logtap start --port 4319 --root .agent/logtap
 ```
 
 Or with source-map support:
 ```bash
-bun run bin/logtap.ts start --dist ./dist --sourcemaps
+bun run logtap start --dist ./dist --sourcemaps
 ```
 
 ## Node fallback
 
-If Bun is not available, the server automatically falls back to Node.js `node:http`. No extra configuration needed — the `createLogTapServer()` function detects the runtime.
+The CLI itself requires Bun. The programmatic server API has a Node.js
+`node:http` fallback when imported and started from a Node process.
 
 ## Read tail and summary
 
 ```bash
 # last 200 events for a project
-bun run bin/logtap.ts tail --project billing-ui.dev
+bun run logtap tail --project billing-ui.dev
 
 # only errors
-bun run bin/logtap.ts tail --project billing-ui.dev --level error
+bun run logtap tail --project billing-ui.dev --level error
 
 # summary (last 15 minutes)
-bun run bin/logtap.ts summary --project billing-ui.dev --since 15m
+bun run logtap summary --project billing-ui.dev --since 15m
 
 # summary as JSON
-bun run bin/logtap.ts summary --project billing-ui.dev --json
+bun run logtap summary --project billing-ui.dev --json
 ```
 
 HTTP endpoints:
@@ -210,7 +222,7 @@ createLogTapServer({ ingestToken: "your-secret-token" });
 Register build artifacts for mapped stack traces:
 
 ```bash
-bun run bin/logtap.ts artifacts add ./dist \
+bun run logtap artifacts add ./dist \
   --project billing-ui.dev \
   --build-sha "$GIT_SHA"
 ```
@@ -235,7 +247,7 @@ The `@jridgewell/trace-mapping` package is an optional dependency. If not instal
 ## Programmatic API
 
 ```ts
-import { createLogTapServer } from "@your-scope/logtap/server";
+import { createLogTapServer } from "@arorashu/logtap/server";
 
 const server = createLogTapServer({
   port: 4319,
