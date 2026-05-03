@@ -21,6 +21,31 @@ if (typeof window === "undefined") {
 
 const captured: LogTapEvent[] = [];
 
+let originalFetch: typeof globalThis.fetch;
+let originalWindowFetch: typeof window.fetch;
+let originalSendBeacon: typeof navigator.sendBeacon;
+let originalConsoleWarn: typeof console.warn;
+let originalConsoleError: typeof console.error;
+
+beforeEach(() => {
+  originalFetch = globalThis.fetch;
+  originalWindowFetch = window.fetch;
+  originalSendBeacon = navigator.sendBeacon;
+  originalConsoleWarn = console.warn;
+  originalConsoleError = console.error;
+});
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+  window.fetch = originalWindowFetch;
+  Object.defineProperty(navigator, "sendBeacon", {
+    configurable: true,
+    value: originalSendBeacon,
+  });
+  console.warn = originalConsoleWarn;
+  console.error = originalConsoleError;
+});
+
 function makeOptions() {
   return {
     endpoint: "http://localhost:4319/__logtap/ingest",
