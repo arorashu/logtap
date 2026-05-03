@@ -14,6 +14,7 @@ A minimal, resource-efficient client-side logging harness for web development. I
 
 - `docs/spec.md`: v0 product and implementation spec
 - `docs/oss-release.md`: public release readiness checklist
+- `docs/future-plans/`: non-v0 ideas and exploration notes
 - `AGENTS.md`: contributor map for agents working in this repository
 - `llms.txt`: compact guide for agents using LogTap output while debugging apps
 

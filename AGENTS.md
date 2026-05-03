@@ -8,6 +8,7 @@ coding agents. Keep this file short: it is a map, not the full manual.
 - `README.md` for user-facing setup and API examples.
 - `docs/spec.md` for the v0 product and implementation spec.
 - `docs/oss-release.md` for public release readiness.
+- `docs/future-plans/` for non-v0 ideas and exploration notes.
 - `llms.txt` for LLM-facing guidance intended for agents using LogTap output.
 - `src/browser/` for the browser SDK.
 - `src/server/` for ingest, storage, retention, dedupe, summaries, source maps,
